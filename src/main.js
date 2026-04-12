@@ -43,6 +43,22 @@ function toPublicUrl(rawPath) {
   return `${normalizedBase}${normalizedPath}`;
 }
 
+function prefersTouchControls() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const hasTouchPoints = (navigator?.maxTouchPoints ?? 0) > 0;
+  const coarsePointer = Boolean(
+    window.matchMedia && window.matchMedia("(pointer: coarse)").matches
+  );
+  const mobileUserAgent = /Android|iPhone|iPad|iPod|Mobile/i.test(
+    navigator?.userAgent ?? ""
+  );
+
+  return hasTouchPoints || coarsePointer || mobileUserAgent;
+}
+
 function getConfiguredAudioEntries(audioConfig) {
   const entries = [];
   if (audioConfig?.music) {
@@ -176,6 +192,7 @@ class TitleScene extends Phaser.Scene {
     const levelOne = gameConfig.levels[0];
     const centerX = this.scale.width * 0.5;
     const centerY = this.scale.height * 0.5;
+    const useTouchControls = prefersTouchControls();
 
     this.cameras.main.setBackgroundColor("#070b1f");
 
@@ -213,7 +230,7 @@ class TitleScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     const startPrompt = this.add
-      .text(centerX, centerY + 90, "PRESS ENTER TO START", {
+      .text(centerX, centerY + 90, useTouchControls ? "TAP TO START" : "PRESS ENTER TO START", {
         fontFamily: "Courier New",
         fontSize: "16px",
         color: "#fff88f"
@@ -232,7 +249,9 @@ class TitleScene extends Phaser.Scene {
       .text(
         centerX,
         this.scale.height - 40,
-        "Arrow keys: move  |  Space: shoot",
+        useTouchControls
+          ? "Touch controls: L/R left  |  FIRE right"
+          : "Arrow keys: move  |  Space: shoot",
         {
           fontFamily: "Courier New",
           fontSize: "11px",
@@ -254,9 +273,19 @@ class TitleScene extends Phaser.Scene {
       )
       .setOrigin(0.5);
 
-    this.input.keyboard.once("keydown-ENTER", () => {
+    let started = false;
+    const startGame = () => {
+      if (started) {
+        return;
+      }
+      started = true;
       this.scene.start("GameScene", { levelIndex: 0 });
-    });
+    };
+
+    this.input.keyboard.once("keydown-ENTER", startGame);
+    if (useTouchControls) {
+      this.input.once("pointerdown", startGame);
+    }
   }
 }
 
@@ -302,6 +331,12 @@ class GameScene extends Phaser.Scene {
     this.initialsCursor = 0;
     this.highScore = this.loadHighScore();
     this.highScoreEntryMode = "gameover";
+    this.useTouchControls = prefersTouchControls();
+    this.touchMoveLeft = false;
+    this.touchMoveRight = false;
+    this.touchFiring = false;
+    this.touchControlCleanup = [];
+    this.touchControlDisplayObjects = [];
     this.weaponHeat = 0;
     this.isWeaponOverheated = false;
     this.weaponOverheatedUntil = 0;
@@ -316,6 +351,10 @@ class GameScene extends Phaser.Scene {
     this.fireKey = this.input.keyboard.addKey(
       Phaser.Input.Keyboard.KeyCodes.SPACE
     );
+    if (this.useTouchControls) {
+      this.input.addPointer(2);
+      this.createTouchControls();
+    }
 
     this.player = this.physics.add
       .sprite(this.scale.width * 0.5, this.scale.height - 62, "playerShip")
@@ -537,6 +576,139 @@ class GameScene extends Phaser.Scene {
     return Number.isFinite(parsedValue) ? parsedValue : fallbackValue;
   }
 
+  createTouchControls() {
+    if (!this.useTouchControls) {
+      return;
+    }
+
+    const moveLeftButton = this.add
+      .circle(52, this.scale.height - 52, 26, 0x89a9d6, 0.22)
+      .setDepth(6)
+      .setScrollFactor(0);
+    moveLeftButton.setStrokeStyle(2, 0x89a9d6, 0.45);
+    moveLeftButton.setInteractive();
+    const moveLeftLabel = this.add
+      .text(moveLeftButton.x, moveLeftButton.y, "<", {
+        fontFamily: "Courier New",
+        fontSize: "24px",
+        color: "#dbe8ff"
+      })
+      .setOrigin(0.5)
+      .setDepth(7)
+      .setScrollFactor(0);
+
+    const moveRightButton = this.add
+      .circle(118, this.scale.height - 52, 26, 0x89a9d6, 0.22)
+      .setDepth(6)
+      .setScrollFactor(0);
+    moveRightButton.setStrokeStyle(2, 0x89a9d6, 0.45);
+    moveRightButton.setInteractive();
+    const moveRightLabel = this.add
+      .text(moveRightButton.x, moveRightButton.y, ">", {
+        fontFamily: "Courier New",
+        fontSize: "24px",
+        color: "#dbe8ff"
+      })
+      .setOrigin(0.5)
+      .setDepth(7)
+      .setScrollFactor(0);
+
+    const fireButton = this.add
+      .circle(this.scale.width - 56, this.scale.height - 52, 32, 0xf06b75, 0.22)
+      .setDepth(6)
+      .setScrollFactor(0);
+    fireButton.setStrokeStyle(2, 0xf06b75, 0.5);
+    fireButton.setInteractive();
+    const fireLabel = this.add
+      .text(fireButton.x, fireButton.y, "FIRE", {
+        fontFamily: "Courier New",
+        fontSize: "12px",
+        color: "#ffe3e8"
+      })
+      .setOrigin(0.5)
+      .setDepth(7)
+      .setScrollFactor(0);
+
+    this.touchControlDisplayObjects.push(
+      moveLeftButton,
+      moveLeftLabel,
+      moveRightButton,
+      moveRightLabel,
+      fireButton,
+      fireLabel
+    );
+
+    this.bindTouchButton(moveLeftButton, "touchMoveLeft");
+    this.bindTouchButton(moveRightButton, "touchMoveRight");
+    this.bindTouchButton(fireButton, "touchFiring");
+  }
+
+  bindTouchButton(button, controlFlagKey) {
+    const activePointerIds = new Set();
+    const syncState = () => {
+      this[controlFlagKey] = activePointerIds.size > 0;
+    };
+
+    const onDown = (pointer) => {
+      if (!pointer) {
+        return;
+      }
+      activePointerIds.add(pointer.id);
+      syncState();
+    };
+    const onUp = (pointer) => {
+      if (!pointer) {
+        return;
+      }
+      activePointerIds.delete(pointer.id);
+      syncState();
+    };
+    const onGlobalPointerUp = (pointer) => {
+      if (!pointer) {
+        return;
+      }
+      if (activePointerIds.delete(pointer.id)) {
+        syncState();
+      }
+    };
+
+    button.on("pointerdown", onDown);
+    button.on("pointerup", onUp);
+    button.on("pointerupoutside", onUp);
+    button.on("pointerout", onUp);
+    this.input.on("pointerup", onGlobalPointerUp);
+
+    this.touchControlCleanup.push(() => {
+      button.off("pointerdown", onDown);
+      button.off("pointerup", onUp);
+      button.off("pointerupoutside", onUp);
+      button.off("pointerout", onUp);
+      this.input.off("pointerup", onGlobalPointerUp);
+      activePointerIds.clear();
+      this[controlFlagKey] = false;
+    });
+  }
+
+  setTouchControlsVisible(isVisible) {
+    this.touchControlDisplayObjects.forEach((obj) => {
+      obj.setVisible(isVisible);
+    });
+  }
+
+  cleanupTouchControls() {
+    this.touchControlCleanup.forEach((fn) => {
+      fn();
+    });
+    this.touchControlCleanup = [];
+    this.touchControlDisplayObjects.forEach((obj) => {
+      obj.destroy();
+    });
+    this.touchControlDisplayObjects = [];
+    this.touchMoveLeft = false;
+    this.touchMoveRight = false;
+    this.touchFiring = false;
+  }
+
   buildWeaponHeatConfig(rawConfig) {
     const resolvedConfig = rawConfig ?? {};
     const resolvedUiConfig = {
@@ -659,7 +831,7 @@ class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (!this.fireKey?.isDown) {
+    if (!this.fireKey?.isDown && !this.touchFiring) {
       const coolingAmount =
         this.weaponHeatConfig.coolPerSecond * (delta / 1000);
       if (coolingAmount > 0) {
@@ -746,11 +918,13 @@ class GameScene extends Phaser.Scene {
     this.startBackgroundMusic();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.cleanupHighScoreInput();
+      this.cleanupTouchControls();
       this.stopWeaponHeatFlash();
       this.stopBackgroundMusic();
     });
     this.events.once(Phaser.Scenes.Events.DESTROY, () => {
       this.cleanupHighScoreInput();
+      this.cleanupTouchControls();
       this.stopWeaponHeatFlash();
       this.stopBackgroundMusic();
     });
@@ -1108,12 +1282,14 @@ class GameScene extends Phaser.Scene {
 
   updatePlayerMovement() {
     const speed = this.playerConfig.moveSpeed;
-    this.player.body.setVelocityX(0);
+    const movingLeft = this.cursors.left.isDown || this.touchMoveLeft;
+    const movingRight = this.cursors.right.isDown || this.touchMoveRight;
 
-    if (this.cursors.left.isDown) {
+    this.player.body.setVelocityX(0);
+    if (movingLeft && !movingRight) {
       this.player.body.setVelocityX(-speed);
     }
-    if (this.cursors.right.isDown) {
+    if (movingRight && !movingLeft) {
       this.player.body.setVelocityX(speed);
     }
   }
@@ -1124,7 +1300,8 @@ class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (!this.fireKey.isDown || time < this.nextPlayerShotAt) {
+    const isFiring = this.fireKey.isDown || this.touchFiring;
+    if (!isFiring || time < this.nextPlayerShotAt) {
       return;
     }
 
@@ -1297,6 +1474,7 @@ class GameScene extends Phaser.Scene {
     }
 
     this.levelCleared = true;
+    this.setTouchControlsVisible(false);
     this.stopWeaponHeatFlash();
     const allLevels = this.cache.json.get(CONFIG_CACHE_KEY)?.levels ?? [];
     const nextLevelIndex = this.levelIndex + 1;
@@ -1329,6 +1507,7 @@ class GameScene extends Phaser.Scene {
 
   triggerGameOver() {
     this.isGameOver = true;
+    this.setTouchControlsVisible(false);
     this.stopWeaponHeatFlash();
     this.player.setVisible(false);
     if (this.score > this.sanitizeScore(this.highScore?.score)) {
