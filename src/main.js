@@ -23,6 +23,26 @@ const DEFAULT_WEAPON_HEAT_CONFIG = Object.freeze({
   }
 });
 
+function toPublicUrl(rawPath) {
+  const value = String(rawPath ?? "").trim();
+  if (!value) {
+    return value;
+  }
+
+  if (
+    /^(https?:)?\/\//i.test(value) ||
+    value.startsWith("data:") ||
+    value.startsWith("blob:")
+  ) {
+    return value;
+  }
+
+  const base = import.meta.env.BASE_URL || "/";
+  const normalizedBase = base.endsWith("/") ? base : `${base}/`;
+  const normalizedPath = value.replace(/^\.?\//, "").replace(/^\/+/, "");
+  return `${normalizedBase}${normalizedPath}`;
+}
+
 function getConfiguredAudioEntries(audioConfig) {
   const entries = [];
   if (audioConfig?.music) {
@@ -56,7 +76,7 @@ class BootScene extends Phaser.Scene {
       if (!binding?.enabled || !binding.path) {
         return;
       }
-      this.load.image(textureKey, binding.path);
+      this.load.image(textureKey, toPublicUrl(binding.path));
     });
 
     const audioEntries = getConfiguredAudioEntries(gameConfigData.audio);
@@ -64,7 +84,7 @@ class BootScene extends Phaser.Scene {
       if (!entry.config?.enabled || !entry.config?.path) {
         return;
       }
-      this.load.audio(entry.key, entry.config.path);
+      this.load.audio(entry.key, toPublicUrl(entry.config.path));
     });
   }
 

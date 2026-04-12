@@ -65,21 +65,21 @@
       "playerShip": {
         "category": "player",
         "description": "Player spacecraft sprite",
-        "path": "/assets/design/player.png",
+        "path": "assets/design/player.png",
         "scale": 0.1,
         "enabled": true
       },
       "playerLaser": {
         "category": "projectile",
         "description": "Player laser projectile",
-        "path": "/assets/design/player-laser.png",
+        "path": "assets/design/player-laser.png",
         "scale": 1,
         "enabled": false
       },
       "enemyLaser": {
         "category": "projectile",
         "description": "Enemy laser projectile",
-        "path": "/assets/design/enemy-laser.png",
+        "path": "assets/design/enemy-laser.png",
         "scale": 1,
         "enabled": false
       },
@@ -87,7 +87,7 @@
         "category": "enemy",
         "enemyType": "drone",
         "description": "Straight-moving enemy",
-        "path": "/assets/design/drone.png",
+        "path": "assets/design/drone.png",
         "scale": 0.08,
         "enabled": true
       },
@@ -95,7 +95,7 @@
         "category": "enemy",
         "enemyType": "striker",
         "description": "Zigzag-moving enemy",
-        "path": "/assets/design/striker.png",
+        "path": "assets/design/striker.png",
         "scale": 0.08,
         "enabled": true
       },
@@ -103,7 +103,7 @@
         "category": "enemy",
         "enemyType": "turret",
         "description": "Stops and shoots",
-        "path": "/assets/design/turret.png",
+        "path": "assets/design/turret.png",
         "scale": 0.1,
         "enabled": true
       },
@@ -111,7 +111,7 @@
         "category": "enemy",
         "enemyType": "gunship",
         "description": "Sweeping enemy that shoots",
-        "path": "/assets/design/gunship.png",
+        "path": "assets/design/gunship.png",
         "scale": 0.1,
         "enabled": true
       }
@@ -125,7 +125,7 @@
     ],
     "music": {
       "key": "bgMusic",
-      "path": "/assets/audio/background.wav",
+      "path": "assets/audio/background.wav",
       "enabled": true,
       "loop": true,
       "volume": 0.35
@@ -133,7 +133,7 @@
     "sfx": {
       "playerFire": {
         "key": "sfxPlayerFire",
-        "path": "/assets/audio/blast.wav",
+        "path": "assets/audio/blast.wav",
         "enabled": true,
         "volume": 0.16,
         "fallbackTone": {
@@ -147,7 +147,7 @@
       },
       "playerHit": {
         "key": "sfxPlayerHit",
-        "path": "/assets/audio/explosion.wav",
+        "path": "assets/audio/explosion.wav",
         "enabled": true,
         "volume": 0.22,
         "fallbackTone": {
@@ -161,7 +161,7 @@
       },
       "enemyHit": {
         "key": "sfxEnemyHit",
-        "path": "/assets/audio/explosion.wav",
+        "path": "assets/audio/explosion.wav",
         "enabled": true,
         "volume": 0.18,
         "fallbackTone": {
