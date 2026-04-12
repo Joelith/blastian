@@ -1,0 +1,365 @@
+{
+  "game": {
+    "title": "Blastian",
+    "canvasWidth": 360,
+    "canvasHeight": 540,
+    "maxCanvasWidth": 560,
+    "pixelZoom": 2
+  },
+  "player": {
+    "lives": 3,
+    "moveSpeed": 200,
+    "fireCooldownMs": 160,
+    "invulnerableMs": 1000
+  },
+  "weaponHeat": {
+    "enabled": true,
+    "maxHeat": 100,
+    "heatPerShot": 9,
+    "coolPerSecond": 28,
+    "overheatLockMs": 2200,
+    "ui": {
+      "label": "HEAT",
+      "x": 8,
+      "yOffsetFromBottom": 8,
+      "width": 110,
+      "height": 10
+    }
+  },
+  "hitboxes": {
+    "notes": [
+      "Increase widthScale/heightScale to make a hitbox larger relative to sprite size.",
+      "Use width/height to force exact pixel dimensions.",
+      "minWidth/minHeight guarantee a minimum box size."
+    ],
+    "player": {
+      "widthScale": 2,
+      "heightScale": 2,
+      "minWidth": 20,
+      "minHeight": 20
+    },
+    "enemy": {
+      "widthScale": 4,
+      "heightScale": 4
+    },
+    "playerLaser": {
+      "widthScale": 1.5,
+      "heightScale": 1.5,
+      "minWidth": 8,
+      "minHeight": 12
+    },
+    "enemyLaser": {
+      "widthScale": 1.5,
+      "heightScale": 1.5,
+      "minWidth": 8,
+      "minHeight": 11
+    }
+  },
+  "assets": {
+    "notes": [
+      "Put image files in public/assets/design/ and flip enabled=true for keys you want to use.",
+      "Use scale for per-image sizing in Phaser (1 = original size, 0.5 = half size).",
+      "When enabled=false or the image is missing, the game falls back to generated placeholder art."
+    ],
+    "bindings": {
+      "playerShip": {
+        "category": "player",
+        "description": "Player spacecraft sprite",
+        "path": "/assets/design/player.png",
+        "scale": 0.1,
+        "enabled": true
+      },
+      "playerLaser": {
+        "category": "projectile",
+        "description": "Player laser projectile",
+        "path": "/assets/design/player-laser.png",
+        "scale": 1,
+        "enabled": false
+      },
+      "enemyLaser": {
+        "category": "projectile",
+        "description": "Enemy laser projectile",
+        "path": "/assets/design/enemy-laser.png",
+        "scale": 1,
+        "enabled": false
+      },
+      "enemyDrone": {
+        "category": "enemy",
+        "enemyType": "drone",
+        "description": "Straight-moving enemy",
+        "path": "/assets/design/drone.png",
+        "scale": 0.08,
+        "enabled": true
+      },
+      "enemyStriker": {
+        "category": "enemy",
+        "enemyType": "striker",
+        "description": "Zigzag-moving enemy",
+        "path": "/assets/design/striker.png",
+        "scale": 0.08,
+        "enabled": true
+      },
+      "enemyTurret": {
+        "category": "enemy",
+        "enemyType": "turret",
+        "description": "Stops and shoots",
+        "path": "/assets/design/turret.png",
+        "scale": 0.1,
+        "enabled": true
+      },
+      "enemyGunship": {
+        "category": "enemy",
+        "enemyType": "gunship",
+        "description": "Sweeping enemy that shoots",
+        "path": "/assets/design/gunship.png",
+        "scale": 0.1,
+        "enabled": true
+      }
+    }
+  },
+  "audio": {
+    "notes": [
+      "Upload .wav files to public/assets/audio/ and point paths here.",
+      "Enable music after your background track exists so it loops in-game.",
+      "SFX entries can use fallbackTone while no file is configured."
+    ],
+    "music": {
+      "key": "bgMusic",
+      "path": "/assets/audio/background.wav",
+      "enabled": true,
+      "loop": true,
+      "volume": 0.35
+    },
+    "sfx": {
+      "playerFire": {
+        "key": "sfxPlayerFire",
+        "path": "/assets/audio/blast.wav",
+        "enabled": true,
+        "volume": 0.16,
+        "fallbackTone": {
+          "enabled": true,
+          "type": "square",
+          "frequency": 920,
+          "attackMs": 3,
+          "decayMs": 45,
+          "volume": 0.015
+        }
+      },
+      "playerHit": {
+        "key": "sfxPlayerHit",
+        "path": "/assets/audio/explosion.wav",
+        "enabled": true,
+        "volume": 0.22,
+        "fallbackTone": {
+          "enabled": true,
+          "type": "sawtooth",
+          "frequency": 190,
+          "attackMs": 4,
+          "decayMs": 190,
+          "volume": 0.03
+        }
+      },
+      "enemyHit": {
+        "key": "sfxEnemyHit",
+        "path": "/assets/audio/explosion.wav",
+        "enabled": true,
+        "volume": 0.18,
+        "fallbackTone": {
+          "enabled": true,
+          "type": "triangle",
+          "frequency": 520,
+          "attackMs": 2,
+          "decayMs": 80,
+          "volume": 0.02
+        }
+      }
+    }
+  },
+  "enemyTypes": {
+    "drone": {
+      "name": "Drone",
+      "movement": "straight",
+      "canShoot": false,
+      "speed": 80,
+      "hp": 1,
+      "score": 100,
+      "placeholderTexture": "enemyDrone"
+    },
+    "striker": {
+      "name": "Striker",
+      "movement": "zigzag",
+      "canShoot": false,
+      "speed": 90,
+      "hp": 1,
+      "score": 150,
+      "weaveAmplitude": 34,
+      "weaveSpeed": 0.006,
+      "placeholderTexture": "enemyStriker"
+    },
+    "turret": {
+      "name": "Turret",
+      "movement": "stationary",
+      "canShoot": true,
+      "speed": 65,
+      "hp": 2,
+      "score": 250,
+      "shootCooldownMs": 1400,
+      "stopY": 120,
+      "placeholderTexture": "enemyTurret"
+    },
+    "gunship": {
+      "name": "Gunship",
+      "movement": "sweeper",
+      "canShoot": true,
+      "speed": 78,
+      "hp": 2,
+      "score": 300,
+      "shootCooldownMs": 900,
+      "weaveAmplitude": 20,
+      "weaveSpeed": 0.0045,
+      "placeholderTexture": "enemyGunship"
+    }
+  },
+  "levels": [
+    {
+      "id": "level-1",
+      "name": "First Contact",
+      "description": "Training skirmish. Survive all waves and clear incoming ships.",
+      "waves": [
+        {
+          "atMs": 1000,
+          "enemyType": "drone",
+          "count": 6,
+          "spacingMs": 300,
+          "lanePattern": "wide"
+        },
+        {
+          "atMs": 4500,
+          "enemyType": "striker",
+          "count": 5,
+          "spacingMs": 500,
+          "lanePattern": "center"
+        },
+        {
+          "atMs": 8500,
+          "enemyType": "drone",
+          "count": 8,
+          "spacingMs": 260,
+          "lanePattern": "alternatingEdges"
+        },
+        {
+          "atMs": 13000,
+          "enemyType": "turret",
+          "count": 3,
+          "spacingMs": 1400,
+          "lanePattern": "center"
+        },
+        {
+          "atMs": 18000,
+          "enemyType": "gunship",
+          "count": 4,
+          "spacingMs": 900,
+          "lanePattern": "wide"
+        },
+        {
+          "atMs": 23000,
+          "enemyType": "striker",
+          "count": 6,
+          "spacingMs": 380,
+          "lanePattern": "random"
+        },
+        {
+          "atMs": 28000,
+          "enemyType": "turret",
+          "count": 2,
+          "spacingMs": 2000,
+          "lanePattern": "wide"
+        },
+        {
+          "atMs": 32000,
+          "enemyType": "gunship",
+          "count": 6,
+          "spacingMs": 650,
+          "lanePattern": "alternatingEdges"
+        }
+      ]
+    },
+    {
+      "id": "level-2",
+      "name": "Counterstrike",
+      "description": "Heavier pressure with mixed gunners and tighter spawn timing.",
+      "waves": [
+        {
+          "atMs": 1000,
+          "enemyType": "striker",
+          "count": 8,
+          "spacingMs": 280,
+          "lanePattern": "wide"
+        },
+        {
+          "atMs": 4200,
+          "enemyType": "drone",
+          "count": 12,
+          "spacingMs": 200,
+          "lanePattern": "alternatingEdges"
+        },
+        {
+          "atMs": 7600,
+          "enemyType": "turret",
+          "count": 4,
+          "spacingMs": 1100,
+          "lanePattern": "center"
+        },
+        {
+          "atMs": 11800,
+          "enemyType": "gunship",
+          "count": 5,
+          "spacingMs": 820,
+          "lanePattern": "wide"
+        },
+        {
+          "atMs": 16200,
+          "enemyType": "striker",
+          "count": 10,
+          "spacingMs": 220,
+          "lanePattern": "random"
+        },
+        {
+          "atMs": 20600,
+          "enemyType": "turret",
+          "count": 3,
+          "spacingMs": 1200,
+          "lanePattern": "alternatingEdges"
+        },
+        {
+          "atMs": 24600,
+          "enemyType": "drone",
+          "count": 14,
+          "spacingMs": 170,
+          "lanePattern": "wide"
+        },
+        {
+          "atMs": 28500,
+          "enemyType": "gunship",
+          "count": 7,
+          "spacingMs": 650,
+          "lanePattern": "alternatingEdges"
+        },
+        {
+          "atMs": 33400,
+          "enemyType": "striker",
+          "count": 8,
+          "spacingMs": 260,
+          "lanePattern": "center"
+        },
+        {
+          "atMs": 37200,
+          "enemyType": "turret",
+          "count": 5,
+          "spacingMs": 900,
+          "lanePattern": "random"
+        }
+      ]
+    }
+  ]
+}
