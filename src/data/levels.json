@@ -120,12 +120,13 @@
   "audio": {
     "notes": [
       "Upload .wav files to public/assets/audio/ and point paths here.",
+      "path can be a string or an array of paths for browser format fallback.",
       "Enable music after your background track exists so it loops in-game.",
       "SFX entries can use fallbackTone while no file is configured."
     ],
     "music": {
       "key": "bgMusic",
-      "path": "assets/audio/background.wav",
+      "path": ["assets/audio/background_compressed.mp3", "assets/audio/background.wav"],
       "enabled": true,
       "loop": true,
       "volume": 0.35

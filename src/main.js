@@ -71,6 +71,63 @@ class BootScene extends Phaser.Scene {
   }
 
   preload() {
+    const centerX = this.scale.width * 0.5;
+    const centerY = this.scale.height * 0.5;
+    const barWidth = 220;
+    const barHeight = 16;
+
+    this.cameras.main.setBackgroundColor("#050915");
+
+    this.add
+      .text(centerX, centerY - 50, "Loading Assets", {
+        fontFamily: "Courier New",
+        fontSize: "20px",
+        color: "#d8f2ff"
+      })
+      .setOrigin(0.5);
+
+    const progressBox = this.add
+      .rectangle(centerX - barWidth * 0.5, centerY - barHeight * 0.5, barWidth, barHeight, 0x11192b)
+      .setOrigin(0, 0);
+    progressBox.setStrokeStyle(1, 0x496287, 1);
+
+    const progressFill = this.add
+      .rectangle(centerX - (barWidth - 2) * 0.5, centerY - (barHeight - 2) * 0.5, 0, barHeight - 2, 0x57e86c)
+      .setOrigin(0, 0);
+
+    const progressText = this.add
+      .text(centerX, centerY + 20, "0%", {
+        fontFamily: "Courier New",
+        fontSize: "12px",
+        color: "#9eb5d7"
+      })
+      .setOrigin(0.5);
+
+    const fileText = this.add
+      .text(centerX, centerY + 40, "Preparing...", {
+        fontFamily: "Courier New",
+        fontSize: "10px",
+        color: "#7d91b6"
+      })
+      .setOrigin(0.5);
+
+    this.load.on("progress", (value) => {
+      const clamped = Phaser.Math.Clamp(value, 0, 1);
+      progressFill.width = Math.round((barWidth - 2) * clamped);
+      progressText.setText(`${Math.round(clamped * 100)}%`);
+    });
+
+    this.load.on("fileprogress", (file) => {
+      if (!file?.key) {
+        return;
+      }
+      fileText.setText(`Loading ${file.key}...`);
+    });
+
+    this.load.once("complete", () => {
+      fileText.setText("Starting...");
+    });
+
     const bindings = gameConfigData.assets?.bindings ?? {};
     Object.entries(bindings).forEach(([textureKey, binding]) => {
       if (!binding?.enabled || !binding.path) {
@@ -84,7 +141,19 @@ class BootScene extends Phaser.Scene {
       if (!entry.config?.enabled || !entry.config?.path) {
         return;
       }
-      this.load.audio(entry.key, toPublicUrl(entry.config.path));
+
+      const rawPath = entry.config.path;
+      if (Array.isArray(rawPath)) {
+        const urls = rawPath
+          .map((path) => toPublicUrl(path))
+          .filter((path) => Boolean(path));
+        if (urls.length > 0) {
+          this.load.audio(entry.key, urls);
+        }
+        return;
+      }
+
+      this.load.audio(entry.key, toPublicUrl(rawPath));
     });
   }
 
