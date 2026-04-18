@@ -337,6 +337,9 @@ class GameScene extends Phaser.Scene {
     this.touchFiring = false;
     this.touchControlCleanup = [];
     this.touchControlDisplayObjects = [];
+    this.postGameTouchCleanup = [];
+    this.postGameTouchDisplayObjects = [];
+    this.postGameEnterHandler = null;
     this.weaponHeat = 0;
     this.isWeaponOverheated = false;
     this.weaponOverheatedUntil = 0;
@@ -709,6 +712,184 @@ class GameScene extends Phaser.Scene {
     this.touchFiring = false;
   }
 
+  cleanupPostGameTouchUi() {
+    this.postGameTouchCleanup.forEach((fn) => {
+      fn();
+    });
+    this.postGameTouchCleanup = [];
+    this.postGameTouchDisplayObjects.forEach((obj) => {
+      obj.destroy();
+    });
+    this.postGameTouchDisplayObjects = [];
+  }
+
+  clearPostGameEnterListener() {
+    if (this.postGameEnterHandler && this.input?.keyboard) {
+      this.input.keyboard.off("keydown-ENTER", this.postGameEnterHandler);
+      this.postGameEnterHandler = null;
+    }
+  }
+
+  createPostGameTouchButton({
+    x,
+    y,
+    width,
+    height,
+    label,
+    onPress,
+    fillColor = 0x10213f,
+    fillAlpha = 0.88,
+    strokeColor = 0x8db4f5,
+    textColor = "#e7f0ff",
+    fontSize = "18px"
+  }) {
+    const button = this.add
+      .rectangle(x, y, width, height, fillColor, fillAlpha)
+      .setOrigin(0.5)
+      .setDepth(8)
+      .setScrollFactor(0);
+    button.setStrokeStyle(2, strokeColor, 0.95);
+    button.setInteractive({ useHandCursor: true });
+
+    const text = this.add
+      .text(x, y, label, {
+        fontFamily: "Courier New",
+        fontSize,
+        color: textColor
+      })
+      .setOrigin(0.5)
+      .setDepth(9)
+      .setScrollFactor(0);
+
+    const handlePress = (pointer) => {
+      if (pointer?.event?.preventDefault) {
+        pointer.event.preventDefault();
+      }
+      onPress();
+    };
+    button.on("pointerdown", handlePress);
+
+    this.postGameTouchCleanup.push(() => {
+      button.off("pointerdown", handlePress);
+    });
+    this.postGameTouchDisplayObjects.push(button, text);
+  }
+
+  showHighScoreTouchUi() {
+    if (!this.useTouchControls) {
+      return;
+    }
+
+    this.cleanupPostGameTouchUi();
+
+    const buttonSize = Math.round(Phaser.Math.Clamp(this.scale.width * 0.16, 44, 74));
+    const buttonSpacing = Math.round(buttonSize * 0.95);
+    const dPadCenterX = Math.round(this.scale.width * 0.28);
+    const dPadCenterY = this.scale.height - Math.round(buttonSize * 2.25);
+    const saveWidth = Math.round(buttonSize * 1.7);
+
+    this.createPostGameTouchButton({
+      x: dPadCenterX,
+      y: dPadCenterY - buttonSpacing,
+      width: buttonSize,
+      height: buttonSize,
+      label: "+",
+      onPress: () => this.stepInitialLetter(1)
+    });
+    this.createPostGameTouchButton({
+      x: dPadCenterX,
+      y: dPadCenterY + buttonSpacing,
+      width: buttonSize,
+      height: buttonSize,
+      label: "-",
+      onPress: () => this.stepInitialLetter(-1)
+    });
+    this.createPostGameTouchButton({
+      x: dPadCenterX - buttonSpacing,
+      y: dPadCenterY,
+      width: buttonSize,
+      height: buttonSize,
+      label: "<",
+      onPress: () => {
+        this.initialsCursor = (this.initialsCursor + 2) % 3;
+        this.updateHighScoreEntryMessage();
+      }
+    });
+    this.createPostGameTouchButton({
+      x: dPadCenterX + buttonSpacing,
+      y: dPadCenterY,
+      width: buttonSize,
+      height: buttonSize,
+      label: ">",
+      onPress: () => {
+        this.initialsCursor = (this.initialsCursor + 1) % 3;
+        this.updateHighScoreEntryMessage();
+      }
+    });
+    this.createPostGameTouchButton({
+      x: Math.round(this.scale.width * 0.78),
+      y: dPadCenterY,
+      width: saveWidth,
+      height: buttonSize,
+      label: "SAVE",
+      onPress: () => this.submitHighScoreEntry(),
+      fillColor: 0x233f14,
+      strokeColor: 0x8ce58c,
+      textColor: "#e8ffe6",
+      fontSize: "15px"
+    });
+  }
+
+  showPostGameActionTouchButton(label, onConfirm) {
+    if (!this.useTouchControls) {
+      return;
+    }
+
+    this.cleanupPostGameTouchUi();
+
+    const buttonHeight = Math.round(Phaser.Math.Clamp(this.scale.width * 0.15, 46, 70));
+    const buttonWidth = Math.round(
+      Phaser.Math.Clamp(this.scale.width * 0.56, 170, this.scale.width - 24)
+    );
+    this.createPostGameTouchButton({
+      x: this.scale.width * 0.5,
+      y: this.scale.height - Math.round(buttonHeight * 0.9),
+      width: buttonWidth,
+      height: buttonHeight,
+      label,
+      onPress: onConfirm,
+      fillColor: 0x1f173a,
+      strokeColor: 0xcaa0ff,
+      textColor: "#f6ecff",
+      fontSize: "18px"
+    });
+  }
+
+  armPostGameContinue(label, onConfirm) {
+    this.clearPostGameEnterListener();
+    let consumed = false;
+
+    const runConfirm = () => {
+      if (consumed) {
+        return;
+      }
+      consumed = true;
+      this.clearPostGameEnterListener();
+      this.cleanupPostGameTouchUi();
+      onConfirm();
+    };
+
+    const enterHandler = () => {
+      runConfirm();
+    };
+
+    this.postGameEnterHandler = enterHandler;
+    if (this.input?.keyboard) {
+      this.input.keyboard.on("keydown-ENTER", enterHandler);
+    }
+    this.showPostGameActionTouchButton(label, runConfirm);
+  }
+
   buildWeaponHeatConfig(rawConfig) {
     const resolvedConfig = rawConfig ?? {};
     const resolvedUiConfig = {
@@ -919,12 +1100,16 @@ class GameScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.cleanupHighScoreInput();
       this.cleanupTouchControls();
+      this.clearPostGameEnterListener();
+      this.cleanupPostGameTouchUi();
       this.stopWeaponHeatFlash();
       this.stopBackgroundMusic();
     });
     this.events.once(Phaser.Scenes.Events.DESTROY, () => {
       this.cleanupHighScoreInput();
       this.cleanupTouchControls();
+      this.clearPostGameEnterListener();
+      this.cleanupPostGameTouchUi();
       this.stopWeaponHeatFlash();
       this.stopBackgroundMusic();
     });
@@ -1117,13 +1302,19 @@ class GameScene extends Phaser.Scene {
       )
       .join(" ");
 
-    this.messageText.setVisible(true).setText(
-      `${titleText}\nSCORE ${this.formatScore(this.score)}\n\n${wheelText}\nARROWS TO EDIT\nENTER TO SAVE`
-    );
+    const controlsText = this.useTouchControls
+      ? "ARROWS OR TOUCH BUTTONS\nENTER OR TAP SAVE"
+      : "ARROWS TO EDIT\nENTER TO SAVE";
+
+    this.messageText
+      .setVisible(true)
+      .setText(`${titleText}\nSCORE ${this.formatScore(this.score)}\n\n${wheelText}\n${controlsText}`);
   }
 
   startHighScoreEntry(mode = "gameover") {
     this.cleanupHighScoreInput();
+    this.clearPostGameEnterListener();
+    this.cleanupPostGameTouchUi();
     this.highScoreEntryMode = mode;
 
     this.initialsChars = ["A", "A", "A"];
@@ -1159,6 +1350,7 @@ class GameScene extends Phaser.Scene {
     };
 
     this.input.keyboard.on("keydown", this.highScoreKeyHandler);
+    this.showHighScoreTouchUi();
   }
 
   stepInitialLetter(direction) {
@@ -1189,13 +1381,16 @@ class GameScene extends Phaser.Scene {
       .setText(this.getHighScoreSavedMessage());
 
     this.time.delayedCall(120, () => {
-      this.input.keyboard.once("keydown-ENTER", () => {
-        if (this.highScoreEntryMode === "campaignClear") {
-          this.scene.start("TitleScene");
-          return;
+      this.armPostGameContinue(
+        this.highScoreEntryMode === "campaignClear" ? "TITLE" : "RETRY",
+        () => {
+          if (this.highScoreEntryMode === "campaignClear") {
+            this.scene.start("TitleScene");
+            return;
+          }
+          this.restartLevel();
         }
-        this.restartLevel();
-      });
+      );
     });
   }
 
@@ -1203,12 +1398,12 @@ class GameScene extends Phaser.Scene {
     if (this.highScoreEntryMode === "campaignClear") {
       return `ALL LEVELS CLEAR!\nNEW HIGH SCORE\n${this.highScore.initials} ${this.formatScore(
         this.highScore.score
-      )}\nPRESS ENTER`;
+      )}\n${this.useTouchControls ? "PRESS ENTER OR TAP TITLE" : "PRESS ENTER"}`;
     }
 
     return `NEW HIGH SCORE!\n${this.highScore.initials} ${this.formatScore(
       this.highScore.score
-    )}\nPRESS ENTER TO RETRY`;
+    )}\n${this.useTouchControls ? "PRESS ENTER OR TAP RETRY" : "PRESS ENTER TO RETRY"}`;
   }
 
   scheduleLevelWaves() {
@@ -1499,8 +1694,14 @@ class GameScene extends Phaser.Scene {
       return;
     }
 
-    this.messageText.setVisible(true).setText("ALL LEVELS CLEAR\nPRESS ENTER");
-    this.input.keyboard.once("keydown-ENTER", () => {
+    this.messageText
+      .setVisible(true)
+      .setText(
+        this.useTouchControls
+          ? "ALL LEVELS CLEAR\nPRESS ENTER OR TAP TITLE"
+          : "ALL LEVELS CLEAR\nPRESS ENTER"
+      );
+    this.armPostGameContinue("TITLE", () => {
       this.scene.start("TitleScene");
     });
   }
@@ -1515,8 +1716,14 @@ class GameScene extends Phaser.Scene {
       return;
     }
 
-    this.messageText.setVisible(true).setText("GAME OVER\nPRESS ENTER TO RETRY");
-    this.input.keyboard.once("keydown-ENTER", () => {
+    this.messageText
+      .setVisible(true)
+      .setText(
+        this.useTouchControls
+          ? "GAME OVER\nPRESS ENTER OR TAP RETRY"
+          : "GAME OVER\nPRESS ENTER TO RETRY"
+      );
+    this.armPostGameContinue("RETRY", () => {
       this.restartLevel();
     });
   }
